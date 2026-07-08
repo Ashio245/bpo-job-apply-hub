@@ -1,5 +1,3 @@
-// @ts-ignore
-import pdf from "pdf-parse";
 import { BPO_CATEGORIES, PHILIPPINE_CITIES } from "./constants";
 
 export interface ParsedResumeData {
@@ -24,52 +22,75 @@ export async function parseResumeFile(
 ): Promise<ParsedResumeData> {
   let text = "";
 
-  // 1. Attempt PDF extraction, fallback to filename string heuristics if it fails
+  // 1. Attempt PDF extraction
   if (fileName.toLowerCase().endsWith(".pdf")) {
     try {
-      const data = await pdf(buffer);
+      // Dynamic import to avoid Turbopack ESM issues with pdf-parse
+      // @ts-ignore - pdf-parse ESM types are incompatible
+      const pdfModule = await import("pdf-parse");
+      const pdfParse = (pdfModule as any).default || pdfModule;
+      const data = await pdfParse(buffer);
       text = data.text || "";
     } catch (err) {
-      console.error("PDF parsing failed, using fallback:", err);
+      console.error("PDF parsing failed, using raw buffer text:", err);
       text = buffer.toString("utf8");
     }
   } else {
     text = buffer.toString("utf8");
   }
 
-  // 2. Fallback text if empty
+  // 2. If text is empty, return empty result — no fake data
   if (!text.trim()) {
-    text = `Resume: ${fileName}\nApplicant Name\napplicant@email.com\n09171234567\nCustomer Service Representative with 2 years experience.`;
+    return {
+      fullName: "",
+      email: "",
+      phone: "",
+      preferredLocations: [],
+      workSetupPreference: "ANY",
+      targetRoles: [],
+      totalBpoExperienceYrs: 0,
+      skills: [],
+      languages: [],
+      experienceSummary: "Could not extract text from this file. Please fill in your details manually."
+    };
   }
 
   // 3. Extract Email
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   const emailMatch = text.match(emailRegex);
-  const email = emailMatch ? emailMatch[0] : "applicant.hub@bpoapply.ph";
+  const email = emailMatch ? emailMatch[0] : "";
 
   // 4. Extract Phone
   const phoneRegex = /(09|\+63\s?9)\d{2}[-\s]?\d{3}[-\s]?\d{4}|\b\d{7}\b/g;
   const phoneMatch = text.match(phoneRegex);
-  const phone = phoneMatch ? phoneMatch[0].replace(/[-\s]/g, "") : "09170000000";
+  const phone = phoneMatch ? phoneMatch[0].replace(/[-\s]/g, "") : "";
 
-  // 5. Extract Name (Heuristic: usually first non-empty line of the text or derived from email/file name)
+  // 5. Extract Name (Heuristic: usually first non-empty line that looks like a name)
   let fullName = "";
   const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
   if (lines.length > 0) {
-    // Check if the first line looks like a name (not an email or phone)
     const firstLine = lines[0];
     if (firstLine.length < 50 && !firstLine.includes("@") && !/\d/.test(firstLine)) {
       fullName = firstLine;
     }
   }
   if (!fullName) {
+    // Try second line
+    if (lines.length > 1) {
+      const secondLine = lines[1];
+      if (secondLine.length < 50 && !secondLine.includes("@") && !/\d/.test(secondLine)) {
+        fullName = secondLine;
+      }
+    }
+  }
+  if (!fullName) {
     // Derive from filename e.g. "Juan_Dela_Cruz_Resume.pdf"
     const cleanName = fileName
-      .replace(/\.[^/.]+$/, "") // remove extension
+      .replace(/\.[^/.]+$/, "")
       .replace(/[-_]/g, " ")
-      .replace(/resume/gi, "")
+      .replace(/resume|cv|curriculum|vitae/gi, "")
       .trim();
-    fullName = cleanName || "Juan Dela Cruz";
+    fullName = cleanName || "";
   }
 
   // 6. Extract Locations (Match against Philippine cities)
@@ -79,10 +100,6 @@ export async function parseResumeFile(
     if (textLower.includes(city.name.toLowerCase())) {
       preferredLocations.push(city.name);
     }
-  }
-  // Default if none matched
-  if (preferredLocations.length === 0) {
-    preferredLocations.push("Quezon City"); // Default to QC/Manila
   }
 
   // 7. Extract Target Roles
@@ -102,9 +119,6 @@ export async function parseResumeFile(
       targetRoles.push(item.name);
     }
   }
-  if (targetRoles.length === 0) {
-    targetRoles.push("Customer Service Representative");
-  }
 
   // 8. Extract total BPO experience
   let totalBpoExperienceYrs = 0;
@@ -115,7 +129,6 @@ export async function parseResumeFile(
       totalBpoExperienceYrs = parseFloat(numMatch[0]);
     }
   } else {
-    // Look for generic "1 year", "2 years", etc.
     const genericMatches = textLower.match(/(\d+)\s*(year|yr)s?\s*experience/g);
     if (genericMatches && genericMatches.length > 0) {
       const numMatch = genericMatches[0].match(/\d+/);
@@ -138,9 +151,6 @@ export async function parseResumeFile(
       skills.push(skill);
     }
   }
-  if (skills.length === 0) {
-    skills.push("Customer Service", "Communication Skills");
-  }
 
   // 10. Extract Languages
   const languagesList = ["English", "Tagalog", "Spanish", "French", "Mandarin", "Japanese", "Korean"];
@@ -149,9 +159,6 @@ export async function parseResumeFile(
     if (textLower.includes(lang.toLowerCase())) {
       languages.push(lang);
     }
-  }
-  if (languages.length === 0) {
-    languages.push("English", "Tagalog");
   }
 
   // 11. Work Setup Preference (Heuristic check)
@@ -164,24 +171,6 @@ export async function parseResumeFile(
     workSetupPreference = "ONSITE";
   }
 
-  // 12. Mock Work History and Education structure for UI manual review
-  const workHistoryJson = [
-    {
-      company: "BPO Solutions Inc.",
-      role: targetRoles[0] || "Customer Service Representative",
-      duration: `${totalBpoExperienceYrs > 0 ? Math.ceil(totalBpoExperienceYrs) : 1} Years`,
-      description: "Handled inbound customer queries, resolved disputes, and achieved high CSAT scores."
-    }
-  ];
-
-  const educationJson = [
-    {
-      school: "AMA Computer University / Local College",
-      degree: textLower.includes("graduate") || textLower.includes("bachelor") ? "Bachelor's Degree" : "College Undergraduate / High School Graduate",
-      year: "2022"
-    }
-  ];
-
   return {
     fullName,
     email,
@@ -192,8 +181,6 @@ export async function parseResumeFile(
     totalBpoExperienceYrs,
     skills,
     languages,
-    experienceSummary: text.substring(0, 500) + (text.length > 500 ? "..." : ""),
-    workHistoryJson,
-    educationJson
+    experienceSummary: text.substring(0, 500) + (text.length > 500 ? "..." : "")
   };
 }

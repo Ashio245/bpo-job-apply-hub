@@ -84,12 +84,12 @@ export const TopBar: React.FC = () => {
           </select>
         </div>
 
-        {/* User avatar mockup */}
+        {/* User avatar */}
         <div className="flex items-center gap-2 cursor-pointer p-1.5 rounded-md hover:bg-[var(--card-border)]/20">
           <div className="h-8 w-8 rounded-full bg-[var(--accent-light)] flex items-center justify-center border border-[var(--accent)]/10 text-[var(--accent)]">
             <User className="h-4 w-4" />
           </div>
-          <span className="text-xs font-semibold hidden lg:inline-block">Juan Dela Cruz</span>
+          <span className="text-xs font-semibold hidden lg:inline-block">My Account</span>
         </div>
       </div>
     </header>

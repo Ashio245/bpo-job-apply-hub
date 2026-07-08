@@ -133,75 +133,12 @@ export interface MockSourceRun {
 // In-Memory Data Store (Persists during server lifecycle)
 class InMemoryStore {
   users: MockUser[] = [
-    { id: "user-1", name: "Juan Dela Cruz", email: "juan@example.com", role: "USER" },
-    { id: "admin-1", name: "Admin Hub Manager", email: "admin@bpoapply.ph", role: "ADMIN" }
+    { id: "user-1", name: "", email: "", role: "USER" }
   ];
 
-  profiles = new Map<string, MockCandidateProfile>([
-    [
-      "user-1",
-      {
-        id: "profile-1",
-        userId: "user-1",
-        fullName: "Juan Dela Cruz",
-        email: "juan@example.com",
-        phone: "09171234567",
-        currentLocation: "Quezon City, Metro Manila",
-        preferredLocations: ["Quezon City", "Pasig", "Taguig (BGC)"],
-        workSetupPreference: "HYBRID",
-        targetRoles: ["Customer Service Representative", "Chat Support Agent"],
-        expectedSalary: 23000,
-        noticePeriodDays: 30,
-        shiftPreference: "NIGHT",
-        totalBpoExperienceYrs: 1.5,
-        experienceSummary: "Customer Service Representative with 1.5 years experience handling financial and billing accounts in the BPO sector. Proficient in handling chat and voice queues.",
-        skills: ["Customer Service", "Active Listening", "Problem Solving", "Data Entry"],
-        languages: ["English", "Tagalog"],
-        completionScore: 85,
-        workHistoryJson: [
-          {
-            company: "Concentrix Philippines",
-            role: "Customer Service Representative",
-            duration: "1.5 Years (2024 - 2025)",
-            description: "Supported US telecom clients with billing and plan setups. Consistently exceeded CSAT and QA targets."
-          }
-        ],
-        educationJson: [
-          {
-            school: "Polytechnic University of the Philippines",
-            degree: "Associate in Computer Technology",
-            year: "2023"
-          }
-        ],
-        savedAnswers: {
-          strengths: "My main strengths are patience, active listening, and technical troubleshooting. I handle irate customers well by showing empathy and providing quick solutions.",
-          why_bpo: "I want to grow my career in the BPO sector because it rewards performance, provides great healthcare benefits, and allows me to practice communication daily."
-        }
-      }
-    ]
-  ]);
+  profiles = new Map<string, MockCandidateProfile>();
 
-  resumes = new Map<string, MockResume[]>([
-    [
-      "user-1",
-      [
-        {
-          id: "resume-1",
-          userId: "user-1",
-          fileName: "Juan_Dela_Cruz_Resume.pdf",
-          fileSize: 102450,
-          fileUrl: "/uploads/mock_resume.pdf",
-          isDefault: true,
-          parsedData: {
-            fullName: "Juan Dela Cruz",
-            email: "juan@example.com",
-            phone: "09171234567"
-          },
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10)
-        }
-      ]
-    ]
-  ]);
+  resumes = new Map<string, MockResume[]>();
 
   sources: MockJobSource[] = [
     {
@@ -493,30 +430,9 @@ class InMemoryStore {
   }
 
   private initializeQueueAndApplications() {
-    // Saved jobs
-    this.savedJobs = [
-      { id: "sj-1", userId: "user-1", jobListingId: "job-js-1", createdAt: new Date() }
-    ];
-
-    // Queue Items
-    this.queueItems = [
-      { id: "qi-1", userId: "user-1", jobListingId: "job-kb-1", status: "PENDING", createdAt: new Date() },
-      { id: "qi-2", userId: "user-1", jobListingId: "job-js-2", status: "PENDING", createdAt: new Date() }
-    ];
-
-    // Completed applications
-    this.applications = [
-      {
-        id: "app-1",
-        userId: "user-1",
-        jobListingId: "job-bd-1",
-        status: "SUBMITTED",
-        applyMethod: "IN_APP",
-        submittedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
-        notes: "Applied directly on the hub. Fits remote chat requirements.",
-        sourceConfirmationRef: "DIRECT-CONF-CX-7781"
-      }
-    ];
+    this.savedJobs = [];
+    this.queueItems = [];
+    this.applications = [];
   }
 }
 

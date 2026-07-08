@@ -75,11 +75,6 @@ export const AppSidebar: React.FC = () => {
                 >
                   <Icon className={`h-4.5 w-4.5 ${active ? "text-[var(--accent)]" : "text-[var(--muted)]"}`} />
                   <span>{item.name}</span>
-                  {item.highlight && item.name === "Apply Queue" && (
-                    <span className="ml-auto bg-[var(--accent)] text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                      2
-                    </span>
-                  )}
                 </Link>
               );
             })}

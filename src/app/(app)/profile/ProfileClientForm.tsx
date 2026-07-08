@@ -16,20 +16,20 @@ export default function ProfileClientForm({ initialProfile, dbActive }: ProfileC
   const { toast } = useToast();
   
   const [profile, setProfile] = useState(initialProfile || {
-    fullName: "Juan Dela Cruz",
-    email: "juan@example.com",
-    phone: "09171234567",
-    currentLocation: "Quezon City, Metro Manila",
-    preferredLocations: ["Quezon City", "Pasig"],
-    workSetupPreference: "HYBRID",
-    targetRoles: ["Customer Service Representative"],
-    expectedSalary: 22000,
+    fullName: "",
+    email: "",
+    phone: "",
+    currentLocation: "",
+    preferredLocations: [],
+    workSetupPreference: "ANY",
+    targetRoles: [],
+    expectedSalary: 0,
     noticePeriodDays: 30,
-    shiftPreference: "NIGHT",
-    totalBpoExperienceYrs: 1.5,
+    shiftPreference: "ANY",
+    totalBpoExperienceYrs: 0,
     experienceSummary: "",
-    skills: ["Customer Service", "Active Listening"],
-    languages: ["English", "Tagalog"],
+    skills: [],
+    languages: [],
     savedAnswers: { why_bpo: "", strengths: "" }
   });
 
