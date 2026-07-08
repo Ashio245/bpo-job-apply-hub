@@ -1,0 +1,286 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// NextAuth models
+model User {
+  id            String             @id @default(cuid())
+  name          String?
+  email         String             @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?            // Optional password for Credentials Provider
+  role          String             @default("USER") // USER, ADMIN
+  accounts      Account[]
+  sessions      Session[]
+  profile       CandidateProfile?
+  preferences   UserPreference?
+  resumes       Resume[]
+  savedJobs     SavedJob[]
+  applications  JobApplication[]
+  queueItems    ApplicationQueueItem[]
+  auditLogs     AuditLog[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// BPO Job Seekers & Profile System
+model CandidateProfile {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Basic Info
+  fullName               String
+  email                  String
+  phone                  String
+  currentLocation        String?
+  
+  // Preferences
+  preferredLocations     String[] // list of cities e.g., ["Quezon City", "Pasig"]
+  workSetupPreference    String   // ONSITE, HYBRID, REMOTE, ANY
+  targetRoles            String[] // ["CSR", "Technical Support", "Chat Support"]
+  expectedSalary         Float?
+  noticePeriodDays       Int?
+  shiftPreference        String   // DAY, NIGHT, FLEXIBLE, ANY
+  
+  // Work History & Education (Stored as JSON for flexibility, but parsed from resume)
+  experienceSummary      String?  @db.Text
+  totalBpoExperienceYrs  Float    @default(0.0)
+  workHistoryJson        Json?    // list of jobs with company, role, duration, description
+  educationJson          Json?    // list of education items
+  skills                 String[] // ["Customer Service", "Technical Troubleshooting"]
+  languages              String[] // ["English", "Tagalog"]
+  
+  // Reusable answers for common job applications
+  savedAnswers           Json?    // e.g., {"why_bpo": "...", "strengths": "..."}
+  
+  completionScore        Int      @default(0) // percentage
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model Resume {
+  id             String            @id @default(cuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileName       String
+  fileSize       Int
+  fileUrl        String            // URL to Vercel blob or local path
+  isDefault      Boolean           @default(false)
+  parsedData     Json?             // Temp storage of parsing results
+  parserErrors   ParserError[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+// Job Aggregation Layer
+model JobSource {
+  id                   String                 @id @default(cuid())
+  name                 String                 @unique // JobStreet, foundit, PhilJobNet, etc.
+  key                  String                 @unique // jobstreet, foundit, philjobnet
+  isActive             Boolean                @default(true)
+  logoUrl              String?
+  
+  // Compliance configs
+  indexingAllowed      Boolean                @default(true)
+  deepExtractAllowed   Boolean                @default(false)
+  inAppApplyAllowed    Boolean                @default(false)
+  assistedApplyAllowed Boolean                @default(false)
+  termsNotice          String?                @db.Text // Compliance disclaimer text
+  rateLimitMs          Int                    @default(1000) // Delay between crawler hits
+  
+  listings             JobListing[]
+  ingestionRuns        SourceIngestionRun[]
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+}
+
+model JobListing {
+  id                   String                 @id @default(cuid())
+  sourceId             String
+  source               JobSource              @relation(fields: [sourceId], references: [id])
+  externalJobId        String                 // Unique ID inside the source platform
+  externalUrl          String                 @db.Text
+  
+  title                String
+  companyName          String
+  locationText         String
+  city                 String?
+  region               String?
+  country              String                 @default("Philippines")
+  
+  workSetup            String                 @default("ONSITE") // ONSITE, HYBRID, REMOTE
+  employmentType       String                 @default("FULL_TIME") // FULL_TIME, PART_TIME, CONTRACT
+  category             String                 @default("CUSTOMER_SERVICE") // CUSTOMER_SERVICE, TECHNICAL_SUPPORT, CHAT_SUPPORT, BACK_OFFICE, healthcare, etc.
+  seniority            String                 @default("ENTRY_LEVEL") // ENTRY, ASSOCIATE, SENIOR, LEAD
+  
+  salaryMin            Float?
+  salaryMax            Float?
+  currency             String                 @default("PHP")
+  
+  description          String                 @db.Text
+  descriptionSnippet   String?                @db.Text
+  requirements         String[]               // Array of text bullet points
+  tags                 String[]
+  
+  postedAt             DateTime
+  fetchedAt            DateTime               @default(now())
+  expiresAt            DateTime?
+  
+  quickApplySupported  Boolean                @default(false)
+  applyMethod          String                 @default("EXTERNAL") // IN_APP, ASSISTED, EXTERNAL
+  status               String                 @default("ACTIVE") // ACTIVE, EXPIRED, DISABLED
+  canonicalHash        String                 @unique // Hash of title + company + location for deduping
+  
+  rawSnapshots         JobListingRawSnapshot[]
+  savedBy              SavedJob[]
+  applications         JobApplication[]
+  queueItems           ApplicationQueueItem[]
+  dedupeClusterId      String?
+  dedupeCluster        DedupeCluster?         @relation(fields: [dedupeClusterId], references: [id])
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+}
+
+model JobListingRawSnapshot {
+  id           String     @id @default(cuid())
+  jobListingId String
+  jobListing   JobListing @relation(fields: [jobListingId], references: [id], onDelete: Cascade)
+  rawJson      Json
+  createdAt    DateTime   @default(now())
+}
+
+// Deduping & Moderation
+model DedupeCluster {
+  id             String       @id @default(cuid())
+  canonicalTitle String
+  listings       JobListing[]
+  resolvedAt     DateTime?
+  createdAt      DateTime     @default(now())
+}
+
+// Application Workflow
+model ApplicationQueueItem {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobListingId String
+  job          JobListing @relation(fields: [jobListingId], references: [id], onDelete: Cascade)
+  status       String     @default("PENDING") // PENDING, BLOCKED, COMPLETED
+  blockReason  String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([userId, jobListingId])
+}
+
+model JobApplication {
+  id                     String     @id @default(cuid())
+  userId                 String
+  user                   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobListingId           String
+  job                    JobListing @relation(fields: [jobListingId], references: [id], onDelete: Cascade)
+  status                 String     @default("SUBMITTED") // READY, SUBMITTED, EXTERNAL_ACTION_NEEDED, INTERVIEW, REJECTED, OFFER
+  applyMethod            String     // IN_APP, ASSISTED, EXTERNAL
+  submittedAt            DateTime   @default(now())
+  externalRedirectedAt   DateTime?
+  notes                  String?    @db.Text
+  validationSnapshot     Json?      // Checklist validation state at time of apply
+  sourceConfirmationRef  String?    // Reference number from employer or third party
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+
+  @@unique([userId, jobListingId])
+}
+
+model SavedJob {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobListingId String
+  job          JobListing @relation(fields: [jobListingId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([userId, jobListingId])
+}
+
+model UserPreference {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailNotifications     Boolean  @default(true)
+  weeklyDigest           Boolean  @default(true)
+  profileVisibleToBpos   Boolean  @default(false)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+// Ingestion and Audit Logs
+model SourceIngestionRun {
+  id           String     @id @default(cuid())
+  sourceId     String
+  source       JobSource  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  status       String     // SUCCESS, FAILED, PARTIAL
+  jobsIngested Int        @default(0)
+  jobsUpdated  Int        @default(0)
+  jobsExpired  Int        @default(0)
+  errorMessage String?    @db.Text
+  createdAt    DateTime   @default(now())
+}
+
+model ParserError {
+  id        String   @id @default(cuid())
+  resumeId  String
+  resume    Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  errorText String   @db.Text
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // e.g., USER_APPLY, ADMIN_TOGGLE_SOURCE
+  details   String   @db.Text
+  ipAddress String?
+  createdAt DateTime @default(now())
+}

@@ -1,26 +1,76 @@
 @import "tailwindcss";
 
+@theme {
+  --color-brand-primary: #0D7377;
+  --color-brand-hover: #0A5E61;
+  --color-brand-light: #F0F7F7;
+  
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #FCFBF9; /* warm soft-stone default */
+  --foreground: #1C1A17;
+  --card: #FFFFFF;
+  --card-border: #E8E5DF;
+  --muted: #706B63;
+  --accent: #0D7377;
+  --accent-light: #F0F7F7;
+  --accent-foreground: #FFFFFF;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Dark mode configurations */
+.dark {
+  --background: #0E0D0B;
+  --foreground: #F5F3EF;
+  --card: #171513;
+  --card-border: #292723;
+  --muted: #9E9689;
+  --accent: #149397;
+  --accent-light: #12292A;
+  --accent-foreground: #F5F3EF;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  font-feature-settings: "tnum" on, "lnum" on; /* tabular numerals */
+}
+
+/* Custom UI Utility classes */
+.glassmorphism {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(228, 224, 217, 0.5);
+}
+
+.dark .glassmorphism {
+  background: rgba(23, 21, 19, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(41, 39, 35, 0.5);
+}
+
+/* Premium micro-interactions */
+.btn-transition {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
