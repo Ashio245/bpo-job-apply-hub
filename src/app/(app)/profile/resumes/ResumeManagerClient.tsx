@@ -48,7 +48,7 @@ export default function ResumeManagerClient({ initialResumes, dbActive }: Resume
     }
   };
 
-  const processFile = (file: File) => {
+  const processFile = async (file: File) => {
     // Basic file validation
     const validTypes = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"];
     if (!validTypes.includes(file.type) && !file.name.toLowerCase().endsWith(".pdf")) {
@@ -67,40 +67,60 @@ export default function ResumeManagerClient({ initialResumes, dbActive }: Resume
       return;
     }
 
-    // Trigger simulation sequence
     setUploadState("uploading");
-    setTimeout(() => {
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      // Brief delay for transition
+      await new Promise(resolve => setTimeout(resolve, 800));
       setUploadState("parsing");
-      setTimeout(() => {
-        setUploadState("success");
-        // Simulated parsed candidate data structure
-        const parsed = {
-          fullName: file.name.replace(/[-_]/g, " ").replace(/\.pdf|\.docx/i, ""),
-          email: "juan.delacruz@bpoapply.ph",
-          phone: "0917-889-1123",
-          skills: ["Customer Service", "Outbound Sales", "English Communication", "Active Listening"],
-          experience: "2.5 Years CSR Experience",
-          languages: ["English", "Tagalog"]
-        };
-        setParsedPreview(parsed);
 
-        // Add to local state list
-        const newResume = {
-          id: `res-${Date.now()}`,
-          fileName: file.name,
-          fileSize: file.size,
-          fileUrl: "/uploads/mock.pdf",
-          isDefault: resumes.length === 0,
-          createdAt: new Date()
-        };
-        setResumes(prev => [newResume, ...prev]);
+      const response = await fetch("/api/resume/parse", {
+        method: "POST",
+        body: formData
+      });
 
-        toast("Resume Parsed Successfully!", {
-          type: "success",
-          message: "Mapped name, email, phone and core skills to your profile."
-        });
-      }, 1500);
-    }, 1000);
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const parsedData = await response.json();
+      
+      setUploadState("success");
+      setParsedPreview({
+        fullName: parsedData.fullName,
+        email: parsedData.email,
+        phone: parsedData.phone,
+        skills: parsedData.skills,
+        experience: `${parsedData.totalBpoExperienceYrs} Years BPO Experience`,
+        languages: parsedData.languages
+      });
+
+      // Add to local state list
+      const newResume = {
+        id: `res-${Date.now()}`,
+        fileName: file.name,
+        fileSize: file.size,
+        fileUrl: `/uploads/${file.name}`,
+        isDefault: resumes.length === 0,
+        createdAt: new Date()
+      };
+      setResumes(prev => [newResume, ...prev]);
+
+      toast("Resume Parsed Successfully!", {
+        type: "success",
+        message: "Mapped name, email, phone and core skills to your profile."
+      });
+    } catch (err: any) {
+      setUploadState("idle");
+      console.error(err);
+      toast("Parsing Failed", {
+        type: "error",
+        message: "We couldn't read this file. Please fill out details manually."
+      });
+    }
   };
 
   const handleSetDefault = (id: string) => {
